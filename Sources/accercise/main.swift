@@ -108,18 +108,21 @@ let main = Group {
     Option("pid", default: 0, description: "Target app PID"),
     Option("app", default: "Nightly", description: "Target app name. Ignored if PID is provided"),
     Flag("web", description: "Only output web area subtree"),
-    Flag("extras", description: "Show additional attributes")) { pid, app, web, extras in
-        let attributes = extras ? basic + additional : basic
+    Flag("extras", description: "Show additional attributes"),
+    VariadicOption<String>("attribute", description: "Show provided attributes")) { pid, app, web, extras, attributes in
+        let attribs = (extras ? basic + additional : basic) + attributes
         if let appRef = getRootElement(pid:pid, name:app) {
             if (web) {
                 if let webArea = findWebArea(appRef) {
-                    dumpTree(webArea, attributes)
+                    dumpTree(webArea, attribs)
                 } else {
                     print("No web area found.")
                 }
             } else {
-                dumpTree(appRef, attributes)
+                dumpTree(appRef, attribs)
             }
+        } else {
+            print("No app found. Did you specify a name or PID?")
         }
   }
 
