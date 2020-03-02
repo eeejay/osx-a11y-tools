@@ -90,7 +90,7 @@ func getAttributeAsString(_ element: AXUIElement, _ name: String) -> String {
     return ""
 }
 
-func dumpTree(_ element: AXUIElement, _ attributes: [String], _ indent: Int = 0) {
+func dumpTree(_ element: AXUIElement, _ attributes: [String], _ actions: Bool, _ indent: Int = 0) {
 	let prefixIndent = String(repeating: " ", count: indent)
     let roleDesc = getAttribute(element, "AXRoleDescription") as? String ?? "unknown"
     var details = [String]()
@@ -98,11 +98,17 @@ func dumpTree(_ element: AXUIElement, _ attributes: [String], _ indent: Int = 0)
         let val = getAttributeAsString(element, attr)
         details.append("\(attr)=\(val)")
     }
+    if (actions) {
+        var actionNames: CFArray?
+        AXUIElementCopyActionNames(element, &actionNames)
+        let actionList = actionNames as? [String] ?? []
+        details.append("actions=[\(actionList.joined(separator:","))]")
+    }
     let detailsStr = details.joined(separator: " ")
     print("\(prefixIndent)\(roleDesc) : \(detailsStr)")
     let children = getAttribute(element, "AXChildren") as? [AXUIElement] ?? []
     for child in children {
-    	dumpTree(child, attributes, indent + 1)
+    	dumpTree(child, attributes, actions, indent + 1)
     }
 }
 
@@ -147,17 +153,18 @@ let main = Group {
     Option("app", default: "Nightly", description: "Target app name. Ignored if PID is provided"),
     Flag("web", description: "Only output web area subtree"),
     Flag("extras", description: "Show additional attributes"),
-    VariadicOption<String>("attribute", description: "Show provided attributes")) { pid, app, web, extras, attributes in
+    Flag("actions", description: "List supported actions"),
+    VariadicOption<String>("attribute", description: "Show provided attributes")) { pid, app, web, extras, actions, attributes in
         let attribs = (extras ? basic + additional : basic) + attributes
         if let appRef = getRootElement(pid:pid, name:app) {
             if (web) {
                 if let webArea = findWebArea(appRef) {
-                    dumpTree(webArea, attribs)
+                    dumpTree(webArea, attribs, actions)
                 } else {
                     print("No web area found.")
                 }
             } else {
-                dumpTree(appRef, attribs)
+                dumpTree(appRef, attribs, actions)
             }
         } else {
             print("No app found. Did you specify a name or PID?")
