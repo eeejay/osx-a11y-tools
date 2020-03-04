@@ -1,1 +1,5 @@
 .build
+.DS_Store
+project.xcworkspace
+xcuserdata
+BenchmarkSynthesizer/build/
