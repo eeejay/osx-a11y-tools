@@ -203,6 +203,17 @@ static CFStringRef CopyCFStringFromOSType(OSType type);
 
 @end
 
+static void httpSend(NSString* string)
+{
+    NSString *urlStr=[NSString stringWithFormat:@"http://localhost:8080/?timestamp=%f&text=%@", CFAbsoluteTimeGetCurrent(),
+                      [string stringByAddingPercentEncodingWithAllowedCharacters:NSCharacterSet.URLQueryAllowedCharacterSet]];
+
+    NSURL *url = [NSURL URLWithString:urlStr];
+    NSURLSessionDataTask *downloadTask = [[NSURLSession sharedSession]
+      dataTaskWithURL:url completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
+    }];
+    [downloadTask resume];
+}
 
 long	SEOpenSpeechChannel( SpeechChannelIdentifier* ssr )
 {
@@ -214,7 +225,6 @@ long	SEOpenSpeechChannel( SpeechChannelIdentifier* ssr )
     [sChannels addObject:simulator];
     [simulator release];
     
-    return (SpeechChannelIdentifier)simulator;
     if (ssr) {
         *ssr = simulator;
 	}
@@ -249,15 +259,7 @@ long	SECloseSpeechChannel( SpeechChannelIdentifier ssr )
 
 long 	SESpeakCFString( SpeechChannelIdentifier ssr, CFStringRef text, CFDictionaryRef options )
 {
-    NSString *urlStr=[NSString stringWithFormat:@"http://localhost:8080/?timestamp=%f&text=%@", CFAbsoluteTimeGetCurrent(),
-                      [(NSString *)text stringByAddingPercentEncodingWithAllowedCharacters:NSCharacterSet.URLQueryAllowedCharacterSet]];
-
-    NSURL *url = [NSURL URLWithString:urlStr];
-    NSURLSessionDataTask *downloadTask = [[NSURLSession sharedSession]
-      dataTaskWithURL:url completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
-    }];
-
-    [downloadTask resume];
+    httpSend((NSString*)text);
     long error = noErr;
     if ([sChannels containsObject:(id)ssr]) {
         [(SynthesizerSimulator *)ssr startSpeaking:(NSString *)text];
@@ -321,9 +323,12 @@ long 	SECopySpeechProperty( SpeechChannelIdentifier ssr, CFStringRef property, C
 {
     long error = noErr;
     if ([sChannels containsObject:(id)ssr]) {
-    
-    
-        [(SynthesizerSimulator *)ssr setObject:(id)object forProperty:(NSString *)property];
+        if (object) {
+                *object = [(SynthesizerSimulator *)ssr copyProperty:(NSString *)property];
+        }
+        else {
+                error = paramErr;
+        }
     }
     else {
         error = noSynthFound;
