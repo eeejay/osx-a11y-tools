@@ -3,8 +3,21 @@ import Cocoa
 import CoreFoundation
 import Commander
 
-let basic = ["AXRole", "AXTitle", "AXDescription", "AXValue"]
-let additional = [ "AXSelectedCells", "AXVisibleCells", "AXRowIndexRange",
+let kEvents = ["AXMainWindowChanged", "AXFocusedWindowChanged",
+    "AXFocusedUIElementChanged", "AXApplicationActivated",
+    "AXApplicationDeactivated", "AXApplicationHidden", "AXApplicationShown",
+    "AXWindowCreated", "AXWindowMoved", "AXWindowResized", "AXWindowMiniaturized",
+    "AXWindowDeminiaturized", "AXDrawerCreated", "AXSheetCreated",
+    "AXHelpTagCreated", "AXValueChanged", "AXUIElementDestroyed",
+    "AXElementBusyChanged", "AXMenuOpened", "AXMenuClosed", "AXMenuItemSelected",
+    "AXRowCountChanged", "AXRowExpanded", "AXRowCollapsed",
+    "AXSelectedCellsChanged", "AXUnitsChanged", "AXSelectedChildrenMoved",
+    "AXSelectedChildrenChanged", "AXResized", "AXMoved", "AXCreated",
+    "AXSelectedRowsChanged", "AXSelectedColumnsChanged", "AXSelectedTextChanged",
+    "AXTitleChanged", "AXLayoutChanged", "AXAnnouncementRequested"]
+
+let kBasicAttributes = ["AXRole", "AXTitle", "AXDescription", "AXValue"]
+let kExtraAttributes = [ "AXSelectedCells", "AXVisibleCells", "AXRowIndexRange",
     "AXColumnIndexRange", "AXCellForColumnAndRow", "AXBlockQuoteLevel",
     "AXAccessKey", "AXValueAutofilled", "AXValueAutofillAvailable",
     "AXValueAutofillType", "AXLanguage", "AXRequired", "AXInvalid", "AXGrabbed",
@@ -90,8 +103,7 @@ func getAttributeAsString(_ element: AXUIElement, _ name: String) -> String {
     return ""
 }
 
-func dumpTree(_ element: AXUIElement, _ attributes: [String], _ actions: Bool, _ indent: Int = 0) {
-	let prefixIndent = String(repeating: " ", count: indent)
+func elementToString(_ element: AXUIElement, _ attributes: [String], _ actions: Bool) -> String {
     let roleDesc = getAttribute(element, "AXRoleDescription") as? String ?? "unknown"
     var details = [String]()
     for attr in attributes {
@@ -105,26 +117,31 @@ func dumpTree(_ element: AXUIElement, _ attributes: [String], _ actions: Bool, _
         details.append("actions=[\(actionList.joined(separator:","))]")
     }
     let detailsStr = details.joined(separator: " ")
-    print("\(prefixIndent)\(roleDesc) : \(detailsStr)")
+    return "\(roleDesc) : \(detailsStr)"
+}
+
+func dumpTree(_ element: AXUIElement, _ attributes: [String], _ actions: Bool, _ indent: Int = 0) {
+	let prefixIndent = String(repeating: " ", count: indent)
+    print("\(prefixIndent)\(elementToString(element, attributes, actions))")
     let children = getAttribute(element, "AXChildren") as? [AXUIElement] ?? []
     for child in children {
     	dumpTree(child, attributes, actions, indent + 1)
     }
 }
 
-func getRootElement(pid: Int, name: String) -> AXUIElement? {
+func getRootElement(pid: pid_t, name: String) -> (ref: AXUIElement, pid: pid_t)? {
     if let info = CGWindowListCopyWindowInfo([.excludeDesktopElements, .optionAll], kCGNullWindowID) as? [[ String : Any]] {
-        var pids = [Int32](Set(info.map({ $0["kCGWindowOwnerPID"] as! Int32 })))
+        var pids = [Int32](Set(info.map({ $0["kCGWindowOwnerPID"] as! pid_t })))
         pids.sort(by: >)
         for p in pids {
             if (pid != 0) {
                 if (pid == p) {
-                    return AXUIElementCreateApplication(p);
+                    return (AXUIElementCreateApplication(p), p)
                 }
             } else {
                 let appRef = AXUIElementCreateApplication(p)
                 if (name == getAttribute(appRef, "AXTitle") as? String ?? "") {
-                    return appRef
+                    return (appRef, p)
                 }
             }
         }
@@ -148,32 +165,68 @@ func findWebArea(_ element: AXUIElement) -> AXUIElement? {
     return nil
 }
 
+class EventUserData {
+    let actions:Bool
+    let attributes:[String]
+
+    init(actions:Bool, attributes:[String]) {
+        self.actions = actions
+        self.attributes = attributes
+    }
+}
+
 let main = Group {
-  $0.command("tree",    Option("pid", default: 0, description: "Target app PID"),
-    Option("app", default: "Nightly", description: "Target app name. Ignored if PID is provided"),
-    Flag("web", description: "Only output web area subtree"),
-    Flag("extras", description: "Show additional attributes"),
-    Flag("actions", description: "List supported actions"),
-    VariadicOption<String>("attribute", description: "Show provided attributes")) { pid, app, web, extras, actions, attributes in
-        let attribs = (extras ? basic + additional : basic) + attributes
-        if let appRef = getRootElement(pid:pid, name:app) {
+    $0.command("tree", Option("pid", default: 0, description: "Target app PID"),
+        Option("app", default: "Nightly", description: "Target app name. Ignored if PID is provided"),
+        Flag("web", description: "Only output web area subtree"),
+        Flag("extras", description: "Show extra attributes"),
+        Flag("actions", description: "List supported actions"),
+        VariadicOption<String>("attribute", description: "Show provided attributes")) { pid, appname, web, extras, actions, attributes in
+        let attribs = (extras ? kBasicAttributes + kExtraAttributes : kBasicAttributes) + attributes
+        if let app = getRootElement(pid:Int32(pid), name:appname) {
             if (web) {
-                if let webArea = findWebArea(appRef) {
+                if let webArea = findWebArea(app.ref) {
                     dumpTree(webArea, attribs, actions)
                 } else {
                     print("No web area found.")
                 }
             } else {
-                dumpTree(appRef, attribs, actions)
+                dumpTree(app.ref, attribs, actions)
             }
         } else {
-            print("No app found. Did you specify a name or PID?")
+            print("No target app found")
         }
-  }
+    }
 
-  $0.command("events") {
-    print("Nothing here yet")
-  }
+    $0.command("events", Option("pid", default: 0, description: "Target app PID"),
+        Option("app", default: "Nightly", description: "Target app name. Ignored if PID is provided"),
+        Flag("extras", description: "Show extra attributes"),
+        Flag("actions", description: "List supported actions"),
+        VariadicOption<String>("attribute", description: "Show provided attributes"),
+        VariadicOption<String>("events", description: "Show only provided events")) { pid, appname, extras, actions, attributes, events in
+        let attribs = (extras ? kBasicAttributes + kExtraAttributes : kBasicAttributes) + attributes
+        if let app = getRootElement(pid:Int32(pid), name:appname) {
+            var observer:AXObserver? = nil
+            let userData = EventUserData(actions:actions, attributes:attribs)
+            let ptr = Unmanaged.passUnretained(userData).toOpaque()
+            AXObserverCreate(Int32(app.pid),
+                {(_ observer:AXObserver, _ element:AXUIElement, _ notification:CFString, _ contextData:UnsafeMutableRawPointer?) in
+                guard let contextData = contextData else { fatalError("contextData should contain the args") }
+                let userData = Unmanaged<EventUserData>.fromOpaque(contextData).takeUnretainedValue()
+                print("[\(notification)] \(elementToString(element, userData.attributes, userData.actions))")
+            }, &observer)
+            let source = AXObserverGetRunLoopSource(observer!)
+            CFRunLoopAddSource(CFRunLoopGetCurrent(), source, CFRunLoopMode.defaultMode)
+
+            for event in (events.isEmpty ? kEvents : events) {
+                AXObserverAddNotification(observer!, app.ref, event as CFString, ptr)
+            }
+
+            CFRunLoopRun()
+        } else {
+            print("No target app found")
+        }
+    }
 }
 
 main.run()
