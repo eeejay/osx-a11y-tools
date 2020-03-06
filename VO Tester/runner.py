@@ -36,7 +36,10 @@ class RequestHandler(BaseHTTPRequestHandler):
 def run(args):
   # find browser
   browser = None;
-  if (args.browser == "s"):
+  if (args.br):
+    browser_path = "open -a " + args.br +" %s"
+    browser = webbrowser.get(browser_path)
+  elif (args.browser == "s"):
     browser = webbrowser.get("safari")
   elif (args.browser == "f"):
     browser = webbrowser.get("firefox")
@@ -104,10 +107,12 @@ def main():
     on a SITE or FILE and preform a series of VoiceOver commands \
     as described in the input file F. \
     The output of these commands will be printed to stdout')
-  parser.add_argument('browser', type=str, choices=['s', 'f', 'fn', 'nd'], help='the browser you\'d like to use (s safari, f firefox, fn firefox nightly, nd nightly debug)')
-  group = parser.add_mutually_exclusive_group()
-  group.add_argument('--file', type=str, help='the relative path to the file you want to run commands on')
-  group.add_argument('--site', type=str, help='the http(s) prefixed website you want to run commands on')
+  br = parser.add_mutually_exclusive_group()
+  br.add_argument('browser', nargs='?', type=str, choices=['s', 'f', 'fn', 'nd'], help='the browser you\'d like to use (s safari, f firefox, fn firefox nightly, nd nightly debug)')
+  br.add_argument('--br', type=str, help='path to a browser you would like to use')
+  loc = parser.add_mutually_exclusive_group()
+  loc.add_argument('--file', type=str, help='the relative path to the file you want to run commands on')
+  loc.add_argument('--site', type=str, help='the http(s) prefixed website you want to run commands on')
   parser.add_argument('inputFile', type=str, help='the file containing commands to run in VoiceOver')
   parser.add_argument('--diff', type=str, choices=['s', 'f', 'fn', 'nd'], help='if you would like to create a diff of the outputs from two browsers, specify the second browser here')
 
