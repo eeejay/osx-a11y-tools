@@ -109,7 +109,7 @@ def main():
     The output of these commands will be printed to stdout')
   br = parser.add_mutually_exclusive_group()
   br.add_argument('browser', nargs='?', type=str, choices=['s', 'f', 'fn', 'nd'], help='the browser you\'d like to use (s safari, f firefox, fn firefox nightly, nd nightly debug)')
-  br.add_argument('--br', type=str, help='path to a browser you would like to use')
+  br.add_argument('--br', type=str, help='abs path to the .app file for the custom browser you would like to use')
   loc = parser.add_mutually_exclusive_group()
   loc.add_argument('--file', type=str, help='the relative path to the file you want to run commands on')
   loc.add_argument('--site', type=str, help='the http(s) prefixed website you want to run commands on')
