@@ -1,7 +1,0 @@
-in
-in
-next
-next
-prev
-prev
-out
