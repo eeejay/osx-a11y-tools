@@ -97,6 +97,7 @@ def run(args):
   with open(args.inputFile) as f:
     for line in f:
       line = line[:-1]
+      print(f"# {line}")
       currTime = time.time()
       if (line == "next"):
         pyautogui.hotkey("option", "ctrl","right")
