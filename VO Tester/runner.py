@@ -93,6 +93,8 @@ def run(args):
   speech_listener = SpeechListener()
   print("Server started...")
 
+  response_times = []
+
   time.sleep(2)
   with open(args.inputFile) as f:
     for line in f:
@@ -120,12 +122,17 @@ def run(args):
       if speech_text:
         print(speech_time - currTime)
         print(f"{speech_text}\n")
+        response_times.append(speech_time - currTime)
       else:
         print("timeout!")
 
   # quit voiceover and server
   pyautogui.hotkey("command", "f5")
   speech_listener.server_close()
+
+  if len(response_times):
+    print(f"Longest response: {max(*response_times)}")
+    print(f"Average response: {sum(response_times) / len(response_times)}")
 
 def main():
   # parse arguments
