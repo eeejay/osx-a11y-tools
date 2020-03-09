@@ -99,7 +99,11 @@ def run(args):
       line = line[:-1]
       print(f"# {line}")
       currTime = time.time()
-      if (line == "next"):
+      if (line == "web"):
+        pyautogui.hotkey("command", "option", "ctrl", "f")
+      elif (line == "home"):
+        pyautogui.hotkey("option", "ctrl", "home")
+      elif (line == "next"):
         pyautogui.hotkey("option", "ctrl","right")
       elif (line == "prev"):
         pyautogui.hotkey("option", "ctrl", "left")
