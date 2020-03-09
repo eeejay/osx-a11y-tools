@@ -8,9 +8,6 @@ import webbrowser
 from io import StringIO
 import difflib
 
-global currTime
-currTime = 978307200
-
 class Capturing(list):
     def __enter__(self):
         self._stdout = sys.stdout
@@ -21,17 +18,37 @@ class Capturing(list):
         del self._stringio    # free up some memory
         sys.stdout = self._stdout
 
-class RequestHandler(BaseHTTPRequestHandler):
-  def do_GET(self):
-    params = parse.parse_qs(parse.urlsplit(self.path).query)
+class SpeechListener(HTTPServer):
+  def __init__(self):
+    HTTPServer.__init__(self, ('localhost', 8080), self.RequestHandler)
+    self.timeout = 1
 
-    if ('timestamp' in params):
-      print(currTime - float(params['timestamp'][0]) - 978307200)
+  def waitForSpeech(self, since=978307200):
+      self.since = since
+      self.speechData = None
+      for i in range(5):
+        self.handle_request()
+        if self.speechData:
+          return self.speechData
+      return (None, 0)
 
-    if ('text' in params):
-      print(parse.unquote(params['text'][0]) + '\n')
+  class RequestHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+      params = parse.parse_qs(parse.urlsplit(self.path).query)
 
-    return
+      if 'timestamp' in params and 'text' in params:
+        timestamp = float(params['timestamp'][0]) + 978307200
+        if timestamp > self.server.since:
+          self.server.speechData = (parse.unquote(params['text'][0]), timestamp)
+
+      self.send_response(200)
+      self.send_header("Content-type", "text/html")
+      self.end_headers()
+      self.wfile.write(b"ok")
+      return
+
+    def log_request(self, code='-', size='-'):
+      pass
 
 def run(args):
   # find browser
@@ -64,21 +81,19 @@ def run(args):
 
   print("Browser is: {}".format(args.browser))
   browser.open_new_tab(location)
-  time.sleep(2)
 
   # start voiceover
   os.system("osascript -e 'tell application \"System Events\" to key code 96 using command down'")
 
   # start server here to avoid (some) startup noise
   print("Starting server....")
-  httpd = HTTPServer(('localhost', 8080), RequestHandler)
-  httpd.timeout = 5
+  speech_listener = SpeechListener()
   print("Server started...")
 
+  time.sleep(2)
   with open(args.inputFile) as f:
     for line in f:
       line = line[:-1]
-      global currTime
       currTime = time.time()
       if (line == "next"):
         os.system("osascript -e 'tell application \"System Events\" to key code 124 using {option down, control down}'")
@@ -93,13 +108,16 @@ def run(args):
       else:
         print("Error parsing command: {}. Skipping".format(line))
 
-      while (httpd.handle_request()):
-        continue
-
+      (speech_text, speech_time) = speech_listener.waitForSpeech(currTime)
+      if speech_text:
+        print(speech_time - currTime)
+        print(f"{speech_text}\n")
+      else:
+        print("timeout!")
 
   # quit voiceover and server
   os.system("osascript -e 'tell application \"System Events\" to key code 96 using command down'")
-  httpd.server_close()
+  speech_listener.server_close()
 
 def main():
   # parse arguments
