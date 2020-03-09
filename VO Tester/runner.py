@@ -7,6 +7,7 @@ import time
 import webbrowser
 from io import StringIO
 import difflib
+import pyautogui
 
 class Capturing(list):
     def __enter__(self):
@@ -83,7 +84,7 @@ def run(args):
   browser.open_new_tab(location)
 
   # start voiceover
-  os.system("osascript -e 'tell application \"System Events\" to key code 96 using command down'")
+  pyautogui.hotkey("command", "f5")
 
   # start server here to avoid (some) startup noise
   print("Starting server....")
@@ -96,15 +97,15 @@ def run(args):
       line = line[:-1]
       currTime = time.time()
       if (line == "next"):
-        os.system("osascript -e 'tell application \"System Events\" to key code 124 using {option down, control down}'")
+        pyautogui.hotkey("option", "ctrl","right")
       elif (line == "prev"):
-        os.system("osascript -e 'tell application \"System Events\" to key code 123 using {option down, control down}'")
+        pyautogui.hotkey("option", "ctrl", "left")
       elif (line == "in"):
-        os.system("osascript -e 'tell application \"System Events\" to key code 125 using {option down, control down, shift down}'")
+        pyautogui.hotkey("shift", "option", "ctrl", "down")
       elif (line == "out"):
-        os.system("osascript -e 'tell application \"System Events\" to key code 126 using {option down, control down, shift down}'")
+        pyautogui.hotkey("shift", "option", "ctrl", "up")
       elif (line == "activate"):
-        os.system("osascript -e 'tell application \"System Events\" to key code 49 using {option down, control down}'")
+        pyautogui.hotkey("option", "ctrl", "space")
       else:
         print("Error parsing command: {}. Skipping".format(line))
 
@@ -116,7 +117,7 @@ def run(args):
         print("timeout!")
 
   # quit voiceover and server
-  os.system("osascript -e 'tell application \"System Events\" to key code 96 using command down'")
+  pyautogui.hotkey("command", "f5")
   speech_listener.server_close()
 
 def main():

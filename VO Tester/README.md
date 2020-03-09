@@ -1,5 +1,9 @@
 ## VoiceOver Tester
 
+Prerequisites:
+
+This script requires `pyautogui`. It can be installed with `pip3 install pyautogui`.
+
 Usage:
 ```
 runner.py [-h] [--br BR]
