@@ -49,13 +49,13 @@ optional arguments:
 Sample runs:
 
 1. Run commands in input.txt on google.com launched in safari:
-`python3 runner.py s input.txt --site http://google.com`
+`./runner.py s input.txt --site http://google.com`
 
 2. Run commands in input.txt on sample.html launched in firefox nightly:
-`python3 runner.py fn input.txt --file sample.html`
+`./runner.py fn input.txt --file sample.html`
 
 3. Generate a diff from running the commands in input.txt on sample.html in safari and firefox nightly:
-`python3 runner.py fn input.txt --file sample.html --diff s`
+`./runner.py fn input.txt --file sample.html --diff s`
 
 4. Run commands in input.txt on sample.html launched in custom debug build:
-`python3 runner.py --br ~/path/to/NightlyDebug.app  input.txt --file sample.html`
+`./runner.py --br ~/path/to/NightlyDebug.app  input.txt --file sample.html`
