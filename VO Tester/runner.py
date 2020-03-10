@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib import parse
 import os
@@ -7,9 +9,7 @@ import time
 import webbrowser
 from io import StringIO
 import difflib
-
-global currTime
-currTime = 978307200
+import pyautogui
 
 class Capturing(list):
     def __enter__(self):
@@ -21,17 +21,37 @@ class Capturing(list):
         del self._stringio    # free up some memory
         sys.stdout = self._stdout
 
-class RequestHandler(BaseHTTPRequestHandler):
-  def do_GET(self):
-    params = parse.parse_qs(parse.urlsplit(self.path).query)
+class SpeechListener(HTTPServer):
+  def __init__(self):
+    HTTPServer.__init__(self, ('localhost', 8080), self.RequestHandler)
+    self.timeout = 1
 
-    if ('timestamp' in params):
-      print(currTime - float(params['timestamp'][0]) - 978307200)
+  def waitForSpeech(self, since=978307200):
+      self.since = since
+      self.speechData = None
+      for i in range(5):
+        self.handle_request()
+        if self.speechData:
+          return self.speechData
+      return (None, 0)
 
-    if ('text' in params):
-      print(parse.unquote(params['text'][0]) + '\n')
+  class RequestHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+      params = parse.parse_qs(parse.urlsplit(self.path).query)
 
-    return
+      if 'timestamp' in params and 'text' in params:
+        timestamp = float(params['timestamp'][0]) + 978307200
+        if timestamp > self.server.since:
+          self.server.speechData = (parse.unquote(params['text'][0]), timestamp)
+
+      self.send_response(200)
+      self.send_header("Content-type", "text/html")
+      self.end_headers()
+      self.wfile.write(b"ok")
+      return
+
+    def log_request(self, code='-', size='-'):
+      pass
 
 def run(args):
   # find browser
@@ -64,42 +84,55 @@ def run(args):
 
   print("Browser is: {}".format(args.browser))
   browser.open_new_tab(location)
-  time.sleep(2)
 
   # start voiceover
-  os.system("osascript -e 'tell application \"System Events\" to key code 96 using command down'")
+  pyautogui.hotkey("command", "f5")
 
   # start server here to avoid (some) startup noise
   print("Starting server....")
-  httpd = HTTPServer(('localhost', 8080), RequestHandler)
-  httpd.timeout = 5
+  speech_listener = SpeechListener()
   print("Server started...")
 
+  response_times = []
+
+  time.sleep(2)
   with open(args.inputFile) as f:
     for line in f:
       line = line[:-1]
-      global currTime
+      print(f"# {line}")
       currTime = time.time()
-      if (line == "next"):
-        os.system("osascript -e 'tell application \"System Events\" to key code 124 using {option down, control down}'")
+      if (line == "web"):
+        pyautogui.hotkey("command", "option", "ctrl", "f")
+      elif (line == "home"):
+        pyautogui.hotkey("option", "ctrl", "home")
+      elif (line == "next"):
+        pyautogui.hotkey("option", "ctrl","right")
       elif (line == "prev"):
-        os.system("osascript -e 'tell application \"System Events\" to key code 123 using {option down, control down}'")
+        pyautogui.hotkey("option", "ctrl", "left")
       elif (line == "in"):
-        os.system("osascript -e 'tell application \"System Events\" to key code 125 using {option down, control down, shift down}'")
+        pyautogui.hotkey("shift", "option", "ctrl", "down")
       elif (line == "out"):
-        os.system("osascript -e 'tell application \"System Events\" to key code 126 using {option down, control down, shift down}'")
+        pyautogui.hotkey("shift", "option", "ctrl", "up")
       elif (line == "activate"):
-        os.system("osascript -e 'tell application \"System Events\" to key code 49 using {option down, control down}'")
+        pyautogui.hotkey("option", "ctrl", "space")
       else:
         print("Error parsing command: {}. Skipping".format(line))
 
-      while (httpd.handle_request()):
-        continue
-
+      (speech_text, speech_time) = speech_listener.waitForSpeech(currTime)
+      if speech_text:
+        print(speech_time - currTime)
+        print(f"{speech_text}\n")
+        response_times.append(speech_time - currTime)
+      else:
+        print("timeout!")
 
   # quit voiceover and server
-  os.system("osascript -e 'tell application \"System Events\" to key code 96 using command down'")
-  httpd.server_close()
+  pyautogui.hotkey("command", "f5")
+  speech_listener.server_close()
+
+  if len(response_times):
+    print(f"Longest response: {max(*response_times)}")
+    print(f"Average response: {sum(response_times) / len(response_times)}")
 
 def main():
   # parse arguments
