@@ -24,16 +24,28 @@ class Capturing(list):
 class SpeechListener(HTTPServer):
   def __init__(self):
     HTTPServer.__init__(self, ('localhost', 8080), self.RequestHandler)
-    self.timeout = 1
 
-  def waitForSpeech(self, since=978307200):
+  def waitForSpeech(self, since=978307200, timeout=5):
       self.since = since
       self.speechData = None
-      for i in range(5):
+      self.timeout = 1
+      initialTime = 0
+      speechQueue = []
+      for i in range(timeout):
         self.handle_request()
         if self.speechData:
-          return self.speechData
-      return (None, 0)
+          break
+
+      while self.speechData:
+        if not initialTime:
+          initialTime = self.speechData[1]
+        speechQueue.append(self.speechData[0])
+        self.timeout = 0.25
+        self.speechData = None
+        self.timeout = 0.25
+        self.handle_request()
+
+      return (speechQueue, initialTime)
 
   class RequestHandler(BaseHTTPRequestHandler):
     def do_GET(self):
@@ -119,9 +131,9 @@ def run(args):
         print("Error parsing command: {}. Skipping".format(line))
 
       (speech_text, speech_time) = speech_listener.waitForSpeech(currTime)
-      if speech_text:
+      if len(speech_text):
         print(speech_time - currTime)
-        print(f"{speech_text}\n")
+        print(f"{', '.join(speech_text)}\n")
         response_times.append(speech_time - currTime)
       else:
         print("timeout!")
