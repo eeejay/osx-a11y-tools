@@ -14,7 +14,7 @@ let kEvents = ["AXMainWindowChanged", "AXFocusedWindowChanged",
     "AXSelectedCellsChanged", "AXUnitsChanged", "AXSelectedChildrenMoved",
     "AXSelectedChildrenChanged", "AXResized", "AXMoved", "AXCreated",
     "AXSelectedRowsChanged", "AXSelectedColumnsChanged", "AXSelectedTextChanged",
-    "AXTitleChanged", "AXLayoutChanged", "AXAnnouncementRequested"]
+    "AXTitleChanged", "AXLayoutChanged", "AXAnnouncementRequested", "AXLiveRegionCreated", "AXLiveRegionChanged"]
 
 let kBasicAttributes = ["AXRole", "AXTitle", "AXDescription", "AXValue"]
 let kExtraAttributes = [ "AXSelectedCells", "AXVisibleCells", "AXRowIndexRange",
